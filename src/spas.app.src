@@ -1,0 +1,12 @@
+{application, spas,
+ [
+  {description, "Erlang port of SPAS by dtex"},
+  {vsn, "0.0.1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { spas_app, []}},
+  {env, []}
+ ]}.
