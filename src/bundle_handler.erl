@@ -14,7 +14,7 @@ init(_Transport, _Req, []) ->
 	{upgrade, protocol, cowboy_rest}.
 
 allowed_methods(Req, State) ->
-	{[<<"GET">>, <<"POST">>], Req, State}.
+	{[<<"GET">>], Req, State}.
 
 content_types_provided(Req, State) ->
 	{[
@@ -24,29 +24,26 @@ content_types_provided(Req, State) ->
 resource_exists(Req, _State) ->
 	case cowboy_req:binding(bid, Req) of
 		{undefined, Req2} ->
-			{true, Req2, index};
+			{false, Req2, index};
 		{BundleID, Req2} ->
 			% TODO: Check if the bundle definition exists
-			case bundle_exists(BundleID) of
-				true -> {true, Req2, BundleID};
-				false -> {false, Req2, BundleID}
+			case spas:lookup(BundleID) of
+				{ok, Cache} -> {true, Req2, Cache};
+				{error, not_found} -> {false, Req2, BundleID}
 			end
 	end.
 
-bundle_json(Req, BundleID) ->
-	{ok, JSONBinary} = file:read_file(full_path(BundleID)),
-	Exports = jsx:decode(JSONBinary),
-	Body = <<"{\"rest\": \"Hello World!\"}">>,
-	{Body, Req, BundleID}.
+bundle_json(Req, Cache) ->
+	{Cache, Req, Cache}.
 
 
 %% PRIVATE %%
-full_path(BundleID) ->
-	Priv = code:priv_dir(spas),
-	filename:join([Priv, "bundles", BundleID])
+% full_path(BundleID) ->
+% 	Priv = code:priv_dir(spas),
+% 	filename:join([Priv, "bundles", BundleID]).
 
-bundle_exists(BundleID) ->
-	case file:read_file_info(full_path(BundleID)) of
-		{ok, _Info} -> true;
-		{error, _Reason} -> false
-	end.
+% bundle_exists(BundleID) ->
+% 	case file:read_file_info(full_path(BundleID)) of
+% 		{ok, _Info} -> true;
+% 		{error, _Reason} -> false
+% 	end.

@@ -1,6 +1,11 @@
 -module (spas).
 
+-export ([start/0]).
+%% API %%
+-export ([insert/2, lookup/1, delete/1]).
+
 start() ->
+	ok = application:start(crypto),
 	ok = application:start(ranch),
 	ok = application:start(cowboy),
 	ok = application:start(spas).
@@ -20,9 +25,10 @@ insert(Key, Value) ->
 lookup(Key) ->
 	try
 		{ok, Pid} = spas_store:lookup(Key),
-		cache:fetch(Pid)
+		{ok, _Value} = cache:fetch(Pid)
 	catch
 		_Class:_Exception ->
+			% We have not cached it.
 		    {error, not_found}
 	end.
 

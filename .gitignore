@@ -1,0 +1,9 @@
+deps/*
+rel/*
+dev/
+ebin/
+rebar
+erl_crash.dump
+.eunit
+eunit.log
+doc
