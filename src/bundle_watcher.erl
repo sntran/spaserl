@@ -13,7 +13,8 @@ start_link(Dir, Interval) ->
 init([Dir, Interval]) ->
 	process_flag(trap_exit, true),
 
-	{_Files, Refs} = inspect(Dir),
+	{Files, Refs} = inspect(Dir),
+	update_bundle_files(Files),
 	{ok, #state{dir = Dir, interval = Interval, changes = Refs,
 				timer = erlang:start_timer(Interval, self(), reload)}}.
 
