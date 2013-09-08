@@ -49,10 +49,9 @@ terminate(_Reason, _State) ->
 %% INTERNAL %%
 update_bundle_files([]) -> ok;
 update_bundle_files([File | Rest]) ->
-	% A file can have multiple bundles.
+	Bundle = binary:list_to_bin(filename:basename(File, ".json")),
 	{ok, Bin} = file:read_file(File),
-	Bundles = jsx:decode(Bin),
-	[spas:insert(Name, Definition) || {Name, Definition} <- Bundles],
+	spas:insert(Bundle, Bin),
 	update_bundle_files(Rest).
 
 find_bundle_files(Directory) ->

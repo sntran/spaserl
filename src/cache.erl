@@ -15,12 +15,13 @@
 
 -record (state, {value, lease_time, start_time}).
 
-%% API %%
 start_link(Value, LeaseTime) ->
+	% Not called directly; called by supervisor.
 	gen_server:start_link(?MODULE, [Value, LeaseTime], []).
 
+%% API %%
 create(Value, LeaseTime) ->
-	spas_sup:start_child(Value, LeaseTime).
+	cache_manager:start_child(Value, LeaseTime).
 
 create(Value) ->
 	create(Value, ?DEFAULT_LEASE_TIME).
@@ -63,6 +64,7 @@ handle_info(timeout, State) ->
 	{stop, normal, State}.
 
 terminate(_Reason, _State) ->
+	% TODO: Handle when cache crashes abnormally; need to restart it.
 	spas_store:delete(self()),
 	ok.
 
