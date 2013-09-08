@@ -46,7 +46,9 @@ code_change(_OldVsn, State, _Extra) ->
 terminate(_Reason, _State) ->
     ok.
 
-%% INTERNAL %%
+%% ==================================================================
+%% Internal Funtions
+%% ==================================================================
 update_bundle_files([]) -> ok;
 update_bundle_files([File | Rest]) ->
 	Bundle = binary:list_to_bin(filename:basename(File, ".json")),
@@ -59,6 +61,14 @@ find_bundle_files(Directory) ->
     [filename:join(Directory, Name) || Name <- Files,
         ".json" =:= filename:extension(Name)].
 
+%%--------------------------------------------------------------------
+%% @doc Check for directory's change since last check.
+%%
+%% This function compares the hash of previous changes if any, on each
+%% file in the directory, and return the list of files that change.
+%% @end
+%%--------------------------------------------------------------------
+% -spec inspect(binary(), list()) -> {[file(), [{file(), hash()}]]}.
 inspect(Dir) ->
 	inspect(Dir, []).
 inspect(Dir, Refs) ->

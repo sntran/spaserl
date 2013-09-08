@@ -35,7 +35,9 @@ replace(Pid, Value) ->
 delete(Pid) ->
 	gen_server:cast(Pid, delete).
 
-%% Callbacks %%
+%% ==================================================================
+%% gen'server Callbacks
+%% ==================================================================
 init([Value, LeaseTime]) ->
 	StartTime = get_current_time(),
 	% Store the data, and set a timeout for this cache.
@@ -71,7 +73,9 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 
-%% INTERNAL %%
+%% ==================================================================
+%% Internal Funtions
+%% ==================================================================
 get_current_time() ->
 	Now = calendar:local_time(),
 	calendar:datetime_to_gregorian_seconds(Now).
