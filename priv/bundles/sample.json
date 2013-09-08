@@ -1,27 +1,22 @@
 {
-	"searchTweets": {
+	"facebook": {
 		"resource": "spashttp.request",
 		"params": {
-			"url": "http://search.twitter.com/search.json",
-			"q": "dtex",
-			"lang": "en",
-			"count": 100 
+		  	"url": "https://www.facebook.com/feeds/page.php",
+		  	"id": "53034719964",
+		  	"format": "json",
+		  	"headers": {
+				"User-Agent": "Mozilla/5.0"
+		  	}
 		},
 		"cacheduration": 3600,
-		"timeout": 500,
-		"filter": {
-			"results": [{
-				"from_user": true,
-				"text": true }]
-		}
-	},
-	"searchMoreTweets": {
-		"resource": "spashttp.request",
-		"params": {
-			"url": "http://search.twitter.com/search.json",
-			"q":"spas",
-			"lang": "en" 
-		},
-		"cacheduration": 3600
+		"timeout": 1000,
+		"filter": [{
+			"published": true,
+			"title": true,
+			"alternate": true,
+			"author": true,
+			"content": true
+		}]
 	}
 }

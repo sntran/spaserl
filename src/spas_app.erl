@@ -11,7 +11,7 @@
 
 start(_StartType, _StartArgs) ->
 	spas_store:init(), % Start the store first before any incoming request.
-	
+
 	Dispatch = cowboy_router:compile([
 		{'_', [
 			{"/bundle/:bid", bundle_handler, []}
