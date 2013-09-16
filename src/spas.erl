@@ -5,6 +5,7 @@
 -export ([insert/2, insert/3, lookup/1, delete/1]).
 
 start() ->
+	% Entry point, starting all necessary applications.
 	ok = application:start(crypto),
 	ok = application:start(ranch),
 	ok = application:start(cowboy), % For REST interface
@@ -12,6 +13,9 @@ start() ->
 	ok = ssl:start(),
 	ok = application:start(spas).
 
+%% ==================================================================
+%% MAIN APIs
+%% ==================================================================
 insert(Key, Value) ->
 	insert(Key, Value, infinity).
 insert(Key, Value, LeaseTime) ->

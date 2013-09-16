@@ -3,6 +3,7 @@
 
 -export ([start_link/2]).
 -export ([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
+-include ("spas.hrl").
 
 -record (state, {dir, interval, timer, changes=[]}).
 
@@ -54,12 +55,30 @@ update_bundle_files([File | Rest]) ->
 	Bundle = binary:list_to_bin(filename:basename(File, ".json")),
 	{ok, Bin} = file:read_file(File),
 	spas:insert(Bundle, Bin),
+	diff_package(jsx:decode(Bin), Bundle),
 	update_bundle_files(Rest).
 
 find_bundle_files(Directory) ->
     {ok, Files} = file:list_dir(Directory),
     [filename:join(Directory, Name) || Name <- Files,
         ".json" =:= filename:extension(Name)].
+
+%%--------------------------------------------------------------------
+%% @doc Remove the cache for package whose definition changes
+%%
+%% During a watch, if any package in bundle's definition changes,
+%% this function removes the corresponding cache so the next request 
+%% will use the new definition.
+%% @end
+%%--------------------------------------------------------------------
+diff_package([], _) -> ok;
+diff_package([{Package, _Definition} | Rest], Bundle) ->
+	Key = ?packageKey(Package, Bundle),
+	case spas:lookup(Key) of
+		{ok, _Value} -> spas:delete(Key);
+		{error, not_found} -> ok
+	end,
+	diff_package(Rest, Bundle).
 
 %%--------------------------------------------------------------------
 %% @doc Check for directory's change since last check.
