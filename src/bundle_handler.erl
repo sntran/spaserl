@@ -1,4 +1,5 @@
 -module (bundle_handler).
+-author ('esente@gmail.com').
 
 -export([init/3]).
 -export([allowed_methods/2]).
@@ -7,7 +8,7 @@
 
 -export([bundle_json/2]).
 
--define (GET, <<"spashttp.request">>).
+-include ("spas.hrl").
 
 %% ==================================================================
 %% REST' state machine
@@ -39,11 +40,20 @@ resource_exists(Req, _State) ->
 	end.
 
 bundle_json(Req, BundleID) ->
+	% Maintain session
+	{ExistingId, Req1} = cowboy_req:cookie(<<"session_id">>, Req),
+	SessionId = case ExistingId of
+		undefined -> new_id();
+		_ -> ExistingId
+	end,
+	Req2 = cowboy_req:set_resp_cookie(
+			<<"session_id">>, SessionId, [], Req1),
+
 	{ok, Binary} = spas:lookup(BundleID),
 	Packages = jsx:decode(Binary),
 	Result = join_json(Packages, BundleID),
 	Response = jsx:minify(<<"{", Result/binary, "}">>),
-	{Response, Req, BundleID}.
+	{Response, Req2, BundleID}.
 
 %% ==================================================================
 %% Internal Funtions
@@ -73,10 +83,16 @@ join_json([{Name, Definition} | T], BundleID) ->
 %%--------------------------------------------------------------------
 % -spec fulfill(binary(), list(), bundle_id()) -> binary().
 fulfill(Name, Definition, BundleID) ->
-	Key = <<BundleID/binary, "^", Name/binary>>,
-	Bin = case spas:lookup(Key) of
+	PackageKey = ?packageKey(Name, BundleID),
+	Bin = case spas:lookup(PackageKey) of
 		{error, not_found} ->
-			perform_request(Key, Definition);
+			case perform_request(PackageKey, get_values(Definition)) of
+				{ok, Value} -> Value;
+				{authorize, Url} ->
+					<<"{\"authorize_url\": \"", Url/binary, "\"}">>;
+				{error, Error} ->
+					<<"{\"error\": \"", Error/binary, "\"}">>
+			end;
 		{ok, Value} -> Value
 	end,
 	<<"\"", Name/binary, "\":", Bin/binary>>.
@@ -90,11 +106,14 @@ fulfill(Name, Definition, BundleID) ->
 %% @end
 %%--------------------------------------------------------------------
 % -spec perform_request(binary(), list()) -> binary().
-perform_request(Key, Definition) ->
-	[Resource, Params, LeaseTime, Timeout] = get_values(Definition),
-	Result = execute_request(Resource, Params, Timeout),
-	spas:insert(Key, Result, LeaseTime),
-	Result.
+perform_request(PackageKey, [Resource, Params, LeaseTime, Timeout, _Filters, Auth]) ->
+	case execute_request(PackageKey, Resource, Params, Timeout, Auth) of
+		{ok, Result} ->
+			% apply_filter(Filters, jsx:decode(Result)),
+			spas:insert(PackageKey, Result, LeaseTime),
+			{ok, Result};
+		Other -> Other
+	end.
 
 %%--------------------------------------------------------------------
 %% @doc Retrieves response's body from remote server.
@@ -104,51 +123,52 @@ perform_request(Key, Definition) ->
 %% @end
 %%--------------------------------------------------------------------
 % -spec perform_request(binary(), list(), integer()) -> binary().
-execute_request(?GET, Params, Timeout) ->
-	Headers = get_value(<<"headers">>, Params, []),
-	FullUrl = get_url(Params),
+execute_request(_PackageKey, ?GET, Params, Timeout, []) ->
+	Headers = utils:get_value(<<"headers">>, Params, []),
+	FullUrl = utils:get_url(Params),
 	UrlString = binary:bin_to_list(FullUrl),
 
 	{ok, {{_Version, 200, _ReasonPhrase}, _H, Body}} = 
 		httpc:request(get, {UrlString, to_string_headers(Headers)}, 
 							[{timeout, Timeout}, {ssl,[{verify,0}]}], [{body_format, binary}]),
-	Body;
+	{ok, Body};
 
-execute_request(_Unknown, _Params, _Timeout) ->
+execute_request(PackageKey, ?GET, Params, _Timeout, 
+				[{<<"type">>, <<"oauth">>}, {<<"provider">>, Provider} | Args]) ->
+	OAUTH_Mod = erlang:binary_to_atom(<<"oauth_", Provider/binary>>, utf8),
+	OAUTHClientRef = {global, PackageKey},
+
+	case OAUTH_Mod:start(OAUTHClientRef, Args) of
+		{ok, _Pid} -> 
+			{ok, Token} = OAUTH_Mod:get_request_token(OAUTHClientRef),
+			AuthorizeURL = erlang:list_to_binary(OAUTH_Mod:authorize_url(Token)),
+			{authorize, AuthorizeURL};
+		{error, {already_started, _}} ->
+			% Either already having access token, or not
+			{ok, _Headers, Body} = OAUTH_Mod:get(OAUTHClientRef, Params),
+			{ok, Body}
+	end;
+
+execute_request(_Key, _Unknown, _Params, _Timeout, _Auth) ->
 	% No known resource, just return an empty body, or an error message.
-	<<"">>.
+	{error, <<"No Known Method">>}.
 
 get_values(Definition) ->
-	Resource = get_value(<<"resource">>, Definition, ?GET),
-	Params = get_value(<<"params">>, Definition, []),
-	LeaseTime = get_value(<<"cacheduration">>, Definition, infinity),
-	Timeout = get_value(<<"timeout">>, Definition, infinity),
-	[Resource, Params, LeaseTime, Timeout].
-
-get_value(Key, TupleList, Default) ->
-	case lists:keyfind(Key, 1, TupleList) of
-		{Key, Value} -> Value;
-		false -> Default
-	end.
-
-get_url(Params) ->
-	% TODO: Set default URL to this server to return an error message.
-	Url = get_value(<<"url">>, Params, <<"">>),
-	lists:foldl(
-		fun({<<"headers">>, _Headers}, Accumulator) -> 
-				Accumulator;
-			({<<"url">>, _Url}, Accumulator) ->
-				Accumulator;
-			({Key, Value}, Accumulator) ->
-				append_query(Accumulator, Key, Value)
-		end, <<Url/binary, "?">>, Params).
-
-append_query(Url, Key, Value) when is_integer(Value) ->
-	<<Url/binary, "&", Key/binary, "=", Value>>;
-append_query(Url, Key, Value) ->
-	<<Url/binary, "&", Key/binary, "=", Value/binary>>.
+	Resource = utils:get_value(<<"resource">>, Definition, ?GET),
+	Params = utils:get_value(<<"params">>, Definition, []),
+	LeaseTime = utils:get_value(<<"cacheduration">>, Definition, infinity),
+	Timeout = utils:get_value(<<"timeout">>, Definition, infinity),
+	Filters = utils:get_value(<<"filter">>, Definition, []),
+	Auth = utils:get_value(<<"auth">>, Definition, []),
+	[Resource, Params, LeaseTime, Timeout, Filters, Auth].
 
 to_string_headers([]) -> [];
 to_string_headers([{Key, Value} | Rest]) ->
 	Header = {binary:bin_to_list(Key), binary:bin_to_list(Value)},
 	[Header | to_string_headers(Rest)].
+
+-spec new_id() -> binary().
+new_id() ->
+	Data = term_to_binary([make_ref(), now(), random:uniform()]),
+	Sha = binary:decode_unsigned(crypto:hash(sha, Data)),
+	list_to_binary(lists:flatten(io_lib:format("~40.16.0b", [Sha]))).
