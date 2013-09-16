@@ -1,4 +1,5 @@
 -module(spas_app).
+-author ('esente@gmail.com').
 
 -behaviour(application).
 
@@ -12,14 +13,21 @@
 start(_StartType, _StartArgs) ->
 	spas_store:init(), % Start the store first before any incoming request.
 
+	Port = 8080,
 	Dispatch = cowboy_router:compile([
 		{'_', [
-			{"/bundle/:bid", bundle_handler, []}
+			{"/oauth/:provider/:package", oauth_handler, []},
+			% {"/oauth2", oauth2_handler, []},
+			% {"/admin", admin_handler, []},
+			{"/bundle/:bid", bundle_handler, []},
+			{"/:bid", bundle_handler, []}
 		]}
 	]),
-	{ok, _} = cowboy:start_http(http, 100, [{port, 8080}], [
+	{ok, _} = cowboy:start_http(http, 100, [{port, Port}], [
 		{env, [{dispatch, Dispatch}]}
 	]),
+
+	io:format("~nSPAS is running on port ~p~n", [Port]),
 
     spas_sup:start_link().
 

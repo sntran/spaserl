@@ -1,4 +1,6 @@
 -module (cache).
+-author ('esente@gmail.com').
+
 -behaviour (gen_server).
 
 -export ([start_link/2,

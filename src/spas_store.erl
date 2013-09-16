@@ -1,6 +1,7 @@
 %% Abstract layer to handle key-to-pid mapping,
 %% whether using ETS or Mnesia.
 -module (spas_store).
+-author ('esente@gmail.com').
 
 -export ([init/0, insert/2, delete/1, lookup/1]).
 

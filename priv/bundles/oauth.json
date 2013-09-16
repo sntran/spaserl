@@ -1,0 +1,24 @@
+{
+  "tweets": {
+    "resource": "spashttp.request",
+    "params": {
+      "url": "https://api.twitter.com/1.1/statuses/user_timeline.json",
+      "screen_name": "murphyusa",
+      "trim_user": "1",
+      "exclude_replies": "1",
+      "include_rts": "0",
+      "count": "200"
+    },
+    "auth": {
+      "type": "oauth",
+      "provider": "twitter",
+      "consumer_key": "ExEOdglOPdMCarY37rnRhg",
+      "consumer_secret": "1VsidmcS45FfIz1WYZVV89sz4p6Yvxr2HzQhP9iI"
+    },
+    "cacheduration": 3600,
+    "timeout": 500,
+    "filter": [{
+        "text": true
+    }]
+  }
+}
