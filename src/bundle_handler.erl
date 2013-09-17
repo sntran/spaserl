@@ -41,13 +41,13 @@ resource_exists(Req, _State) ->
 
 bundle_json(Req, BundleID) ->
 	% Maintain session
-	{ExistingId, Req1} = cowboy_req:cookie(<<"session_id">>, Req),
-	SessionId = case ExistingId of
-		undefined -> new_id();
+	{ExistingId, Req1} = cowboy_req:cookie(<<"previous_url">>, Req),
+	PrevUrl = case ExistingId of
+		undefined -> <<"http://127.0.0.1/", BundleID/binary>>;
 		_ -> ExistingId
 	end,
 	Req2 = cowboy_req:set_resp_cookie(
-			<<"session_id">>, SessionId, [], Req1),
+			<<"previous_url">>, PrevUrl, [], Req1),
 
 	{ok, Binary} = spas:lookup(BundleID),
 	Packages = jsx:decode(Binary),
@@ -108,10 +108,14 @@ fulfill(Name, Definition, BundleID) ->
 % -spec perform_request(binary(), list()) -> binary().
 perform_request(PackageKey, [Resource, Params, LeaseTime, Timeout, _Filters, Auth]) ->
 	case execute_request(PackageKey, Resource, Params, Timeout, Auth) of
-		{ok, Result} ->
+		{ok, Result} when is_bitstring(Result) ->
 			% apply_filter(Filters, jsx:decode(Result)),
 			spas:insert(PackageKey, Result, LeaseTime),
 			{ok, Result};
+		{ok, Result} ->
+			Binary = erlang:list_to_bitstring(Result),
+			spas:insert(PackageKey, Binary, LeaseTime),
+			{ok, Binary};
 		Other -> Other
 	end.
 
@@ -166,9 +170,3 @@ to_string_headers([]) -> [];
 to_string_headers([{Key, Value} | Rest]) ->
 	Header = {binary:bin_to_list(Key), binary:bin_to_list(Value)},
 	[Header | to_string_headers(Rest)].
-
--spec new_id() -> binary().
-new_id() ->
-	Data = term_to_binary([make_ref(), now(), random:uniform()]),
-	Sha = binary:decode_unsigned(crypto:hash(sha, Data)),
-	list_to_binary(lists:flatten(io_lib:format("~40.16.0b", [Sha]))).

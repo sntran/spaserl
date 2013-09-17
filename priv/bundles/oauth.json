@@ -20,5 +20,30 @@
     "filter": [{
         "text": true
     }]
+  },
+  "flickr": {
+    "resource": "spashttp.request",
+    "params": {
+      "url": "http://api.flickr.com/services/rest",
+      "format":"json",
+      "nojsoncallback": 1,
+      "api_key": "26d7b275ba37b30e29b36623f18fac85",
+      "user_id": "69099280@N07",
+      "method": "flickr.photosets.getList"
+    },
+    "cacheduration": 3600,
+    "timeout": 2000,
+    "filter": {
+      "photosets": {
+        "photoset": [{
+          "title": true,
+          "photo": true,
+          "id": true,
+          "farm": true,
+          "server": true,
+          "secret": true
+        }]
+      }
+    }
   }
 }
