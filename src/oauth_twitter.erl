@@ -33,6 +33,15 @@ get_access_token(Client, Verifier) ->
   	oauth_client:get_access_token(Client, URL, [{"oauth_verifier", Verifier}]).
 
 get(Client, Params) ->
-	BinaryURL = utils:get_url(Params),
-	URL = binary:bin_to_list(BinaryURL),
-	oauth_client:get(Client, URL, []).
+	URL = erlang:binary_to_list(utils:get_value(<<"url">>, Params, <<"">>)),
+
+	ParamsList = lists:foldl(
+		fun({<<"headers">>, _Headers}, Accumulator) -> 
+				Accumulator;
+			({<<"url">>, _Url}, Accumulator) ->
+				Accumulator;
+			({Key, Value}, Accumulator) ->
+				[{erlang:binary_to_list(Key), erlang:binary_to_list(Value)} | Accumulator]
+		end, [], Params),
+
+	oauth_client:get(Client, URL, ParamsList).
